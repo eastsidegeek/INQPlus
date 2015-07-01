@@ -1,19 +1,8 @@
 #!/usr/bin/perl
 use SOAP::Lite;
-#use Data::Dumper::Names;
+use Data::Dumper::Names;
 use Getopt::Long;
-$username = 'admin'; # set username and password here
-$password = 'changeme';
-$SOAP::Constants::DO_NOT_USE_CHARSET = 1;
-my $soap = SOAP::Lite->new(
-proxy=>"http://[ViPR SRM Frontend IP]:58080/APG-WS/wsapi/report?wsdl",
-);
-$soap->soapversion('1.1');
-my $serializer = $soap->serializer();
-
-$serializer->register_ns('http://www.watch4net.com/APG/Web/XmlTree1','xt');
-$serializer->register_ns('http://www.watch4net.com/APG/Remote/ReportManagerService','rep');
-$serializer->register_ns('http://schemas.xmlsoap.org/soap/envelope/','soapenv');
+use Env qw(ORACLE_HOME ORACLE_SID);
 
 my $argvvmax = '';
 my $argvhelp = '';
@@ -30,7 +19,28 @@ GetOptions ('help' => \$argvhelp,
 			'raw' => \$argvraw, 
 			'asm' => \$argvasm,
 			'demo' => \$argvdemo,
-			'rawfile=s' => \$argvrawfile);
+			'rawfile=s' => \$argvrawfile,
+      'vsuser=s' => \$argvvsuser,
+      'vspass=s' => \$argvvspass,
+      'vshost=s' => \$argvvshost,
+      'vsport=s' => \$argvvsport,
+      'orasid=s' => \$argvorasid
+    );
+
+$username = ($argvvsuser)?($argvvsuser):'admin'; # set username and password here
+$password = ($argvvspass)?($argvvspass):'changeme1';
+$vshost = ($argvvshost)?($argvvshost):'lglov081.lss.emc.com'; # ViPR SRM Frontend
+$vsport = ($argvvsport)?($argvvsport):'58080'; # ViPR SRM Frontend Port
+$SOAP::Constants::DO_NOT_USE_CHARSET = 1;
+my $soap = SOAP::Lite->new(
+proxy=>"http://$vshost:$vsport/APG-WS/wsapi/report?wsdl",
+);
+$soap->soapversion('1.1');
+my $serializer = $soap->serializer();
+
+$serializer->register_ns('http://www.watch4net.com/APG/Web/XmlTree1','xt');
+$serializer->register_ns('http://www.watch4net.com/APG/Remote/ReportManagerService','rep');
+$serializer->register_ns('http://schemas.xmlsoap.org/soap/envelope/','soapenv');
 
 if($argvhelp) {
 	print "INQ Plus
@@ -54,7 +64,14 @@ Parameters:
 	Run inq binary with sudo
 --vmax
 	Attempts to find statistics on masked VMAX FAs for all devices
-
+--vsuser
+  ViPR SRM username
+--vsport
+  ViPR SRM password
+--vshost
+  ViPR SRM frontend host
+--vsport
+  ViPR SRM frontend hostport
 
 Copyright
 Licensed under Creative Commons Attribution (CC BY)
@@ -110,7 +127,9 @@ foreach my $inqline (@inqlines) {
        
 		my $filter = " &amp; partsn=='$wwn'";
 		$query = $xml1 . $filter . $xml2;
+
 		my $result = $soap->getReport(SOAP::Data->type('xml' => $query)); # end getReport call
+    #print Dumper($result);
 		
 		$data = ($result->envelope)->{'Body'}->{'getReportResponse'}->{'table-element'}->{'table'}->{'data'}->{'tr'};
 		# $data is an array ref of all elements
@@ -142,8 +161,12 @@ foreach my $inqline (@inqlines) {
 		$model = $data->{'ts'}->[3];
 		$capacity =~ s/,//g;
 		$used =~ s/,//g;
-		$percent = ($used / $capacity) * 100;
-		$percent = sprintf '%.2f',$percent;
+    if($capacity > 0) {
+		  $percent = ($used / $capacity) * 100;
+		  $percent = sprintf '%.2f',$percent;
+    } else {
+      $percent = "N/A";
+    }
 		print "LUN ID $lunid uses FAST policy $policy on Array $arraysn of type $model\n";
 		print "$used GB allocated ($percent%) out of a total of $capacity GB\n";
 		print "Last hour averages\n";
@@ -188,7 +211,10 @@ if($argvasm) {
 	if($argvdemo) {
 		$asmout = ' 1104837   380139  1104837  ASM_DB_GROUP_01       ASM_DB_GROUP       REGULAR         System                         UNKNOWN  /dev/raw/raw215';  # sample data
 	} else {
-		$asmout = `sudo -u oracle $ORACLE_HOME/bin/asmcmd lsdsk -k`;  # real data
+    $orasid = ($argvorasid)?$argvorasid:'+ASM';
+    $exportcmd = 'export '.$orasid;
+		`exportcmd`;
+    $asmout = `sudo -E -u oracle $ORACLE_HOME/bin/asmcmd lsdsk -k`;  # real data
 	} # end if argvdemo
 	
 	#print "Processing ASM \n";
@@ -210,10 +236,9 @@ if($argvasm) {
 		if($argvdemo) {
 			$rawout = 'ACTION=="add", KERNEL=="emcpoweraj1", RUN+="/bin/raw /dev/raw/raw215 %N"';
 		} else {
-			if(!$argvrawfile) {
-				$argvrawfile = '/etc/udev/rules.d/60-raw.rules';
-			}
-			$rawcmd = 'cat '.$argvrawfile;
+			
+      $rawfile = ($argvrawfile)?($argvrawfile):'/etc/udev/rules.d/60-raw.rules'; # set raw file
+			$rawcmd = 'cat '.$rawfile;
 			$rawout = `$rawcmd`;
 		} # end if argvraw
 		
