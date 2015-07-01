@@ -21,3 +21,4 @@ Parameters:
 	Run inq binary with sudo
 --vmax
 	Attempts to find statistics on masked VMAX FAs for all devices
+
