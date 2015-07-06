@@ -54,6 +54,8 @@ Parameters:
 	Attempt to run asmcmd lsdsk to associate LUNs with ASM disk groups
 --help
 	Displays this message
+--orasid
+	Specify an ORACLE_SID variable
 --pp
 	Filters for only EMC power devices
 --raw
