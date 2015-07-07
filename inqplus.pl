@@ -28,8 +28,8 @@ GetOptions ('help' => \$argvhelp,
     );
 
 $username = ($argvvsuser)?($argvvsuser):'admin'; # set username and password here
-$password = ($argvvspass)?($argvvspass):'changeme1';
-$vshost = ($argvvshost)?($argvvshost):'lglov081.lss.emc.com'; # ViPR SRM Frontend
+$password = ($argvvspass)?($argvvspass):'changeme';
+$vshost = ($argvvshost)?($argvvshost):'viprfehost.mydomain.com'; # ViPR SRM Frontend
 $vsport = ($argvvsport)?($argvvsport):'58080'; # ViPR SRM Frontend Port
 $SOAP::Constants::DO_NOT_USE_CHARSET = 1;
 my $soap = SOAP::Lite->new(
